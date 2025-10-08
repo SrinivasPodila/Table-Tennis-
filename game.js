@@ -49,17 +49,24 @@ const computer = {
 let gameRunning = false;
 const winningScore = 5;
 let gameOver = false;
+let gameTimeLeft = 5 * 60; // 5 minutes in seconds
+let gameTimer;
+let computerWins = false;
+let gameEndedByTime = false; // Track if game ended by time
 
-// Event listeners
+// Event listeners for keyboard
 document.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowUp') player.moveUp = true;
     if (e.key === 'ArrowDown') player.moveDown = true;
     if (e.key === ' ' && !gameRunning && !gameOver) {
-        gameRunning = true;
-        ball.reset();
+        startGame();
     }
-    if (e.key === 'r' && gameOver) {
+    // Only allow R to work when the game is actually over
+    if (e.key.toLowerCase() === 'r' && gameOver && computerWins) {
         resetGame();
+    } else if (e.key.toLowerCase() === 'r' && !computerWins) {
+        // Prevent default R key behavior during game
+        e.preventDefault();
     }
 });
 
@@ -67,6 +74,162 @@ document.addEventListener('keyup', (e) => {
     if (e.key === 'ArrowUp') player.moveUp = false;
     if (e.key === 'ArrowDown') player.moveDown = false;
 });
+
+// Mobile controls
+const startBtn = document.getElementById('startBtn');
+const upBtn = document.getElementById('upBtn');
+const downBtn = document.getElementById('downBtn');
+
+// Touch and mouse events for mobile controls
+function addMobileButtonListeners(button, action) {
+    // Touch events
+    button.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        action(true);
+    }, { passive: false });
+    
+    button.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        action(false);
+    }, { passive: false });
+    
+    // Mouse events for testing on desktop
+    button.addEventListener('mousedown', () => action(true));
+    button.addEventListener('mouseup', () => action(false));
+    button.addEventListener('mouseleave', () => action(false));
+}
+
+// Add event listeners to mobile buttons
+addMobileButtonListeners(upBtn, (isActive) => player.moveUp = isActive);
+addMobileButtonListeners(downBtn, (isActive) => player.moveDown = isActive);
+
+// Start button functionality
+startBtn.addEventListener('click', () => {
+    if (!gameRunning && !gameOver) {
+        startGame();
+    }
+});
+
+// Function to show a message with animation
+function showMessage(text, duration = 2000) {
+    const msg = document.createElement('div');
+    msg.textContent = text;
+    msg.style.cssText = `
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: linear-gradient(45deg, #ff6b6b, #ff8e8e);
+        color: white;
+        padding: 20px 40px;
+        border-radius: 10px;
+        font-size: 2rem;
+        font-weight: bold;
+        text-align: center;
+        z-index: 1000;
+        box-shadow: 0 0 30px rgba(255, 107, 107, 0.7);
+        animation: fadeInOut 2s ease-in-out;
+        white-space: nowrap;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    `;
+    
+    // Add animation to CSS
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+            15% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+            30% { transform: translate(-50%, -50%) scale(0.95); }
+            50% { transform: translate(-50%, -50%) scale(1); }
+            85% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(1.2); }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    document.body.appendChild(msg);
+    
+    // Remove message after duration
+    setTimeout(() => {
+        msg.remove();
+        style.remove();
+    }, duration);
+}
+
+// Start game function
+function startGame() {
+    if (!gameRunning && !gameOver) {
+        // Show challenge message
+        showMessage('DARE TO PLAY WITH ME AND WIN AGAINST ME!');
+        
+        // Reset scores and game state
+        player.score = 0;
+        computer.score = 0;
+        document.getElementById('playerScore').textContent = '0';
+        document.getElementById('computerScore').textContent = '0';
+        
+        gameRunning = true;
+        gameOver = false;
+        computerWins = false;
+        gameEndedByTime = false;
+        gameTimeLeft = 5 * 60; // Reset timer to 5 minutes
+        updateTimerDisplay();
+        
+        // Start the game timer
+        clearInterval(gameTimer);
+        gameTimer = setInterval(updateGameTimer, 1000);
+        
+        // Reset ball
+        ball.speed = 5;
+        ball.reset();
+        
+        // Reset paddles to center
+        player.y = canvas.height / 2 - player.height / 2;
+        computer.y = canvas.height / 2 - computer.height / 2;
+    }
+}
+
+function updateGameTimer() {
+    if (!gameRunning || gameOver) return;
+    
+    gameTimeLeft--;
+    updateTimerDisplay();
+    
+    if (gameTimeLeft <= 0) {
+        // Time's up! Computer wins
+        clearInterval(gameTimer);
+        gameOver = true;
+        computerWins = true;
+        computer.score = Math.max(computer.score, player.score + 1); // Ensure computer has higher score
+        document.getElementById('computerScore').textContent = computer.score;
+        
+        // Show game over message and enable restart
+        const gameOverMsg = document.createElement('div');
+        gameOverMsg.id = 'gameOverMessage';
+        gameOverMsg.textContent = 'Game Over! Computer wins! Press R to restart';
+        gameOverMsg.style.cssText = `
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px 40px;
+            border-radius: 10px;
+            font-size: 1.5rem;
+            text-align: center;
+            z-index: 1000;
+        `;
+        document.body.appendChild(gameOverMsg);
+    }
+}
+
+function updateTimerDisplay() {
+    const minutes = Math.floor(gameTimeLeft / 60);
+    const seconds = gameTimeLeft % 60;
+    document.getElementById('gameTimer').textContent = 
+        `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
 
 // Game functions
 function drawRect(x, y, width, height, color) {
@@ -163,12 +326,12 @@ function update() {
         resetBall();
     }
 
-    // Check for winner
-    if (player.score >= winningScore || computer.score >= winningScore) {
+        // Only check for winner if game hasn't ended by time
+    if (!gameEndedByTime && (player.score >= winningScore || computer.score >= winningScore)) {
         gameOver = true;
         gameRunning = false;
-        const winner = player.score > computer.score ? 'Player' : 'Computer';
-        alert(`${winner} wins! Press R to restart.`);
+        clearInterval(gameTimer);
+        // Don't show any alert, just end the game
     }
 }
 
@@ -182,12 +345,33 @@ function resetBall() {
 }
 
 function resetGame() {
+    // Only allow reset if game is over (time's up)
+    if (!gameOver) return;
+    
+    // Remove game over message if it exists
+    const gameOverMsg = document.getElementById('gameOverMessage');
+    if (gameOverMsg) {
+        gameOverMsg.remove();
+    }
+    
+    // Reset game state
     player.score = 0;
     computer.score = 0;
     document.getElementById('playerScore').textContent = '0';
     document.getElementById('computerScore').textContent = '0';
     gameOver = false;
+    gameRunning = false;
+    computerWins = false;
+    gameEndedByTime = false;
+    gameTimeLeft = 5 * 60;
+    updateTimerDisplay();
+    clearInterval(gameTimer);
     resetBall();
+    
+    // Reset ball position
+    ball.x = canvas.width / 2;
+    ball.y = canvas.height / 2;
+    ball.speed = 5;
 }
 
 function draw() {
