@@ -11,10 +11,18 @@
         <div class="score">
             <div>Player: <span id="playerScore">0</span></div>
             <div>Computer: <span id="computerScore">0</span></div>
+            <div>Time Left: <span id="gameTimer">05:00</span></div>
         </div>
         <canvas id="gameCanvas"></canvas>
         <div class="controls">
             <p>Use <strong>UP</strong> and <strong>DOWN</strong> arrow keys to move your paddle</p>
+        </div>
+        <div class="mobile-controls">
+            <button id="startBtn" class="control-btn">START</button>
+            <div class="direction-btns">
+                <button id="upBtn" class="control-btn">▲</button>
+                <button id="downBtn" class="control-btn">▼</button>
+            </div>
         </div>
     </div>
     <script src="game.js"></script>
